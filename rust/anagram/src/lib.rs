@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use unicode_segmentation::UnicodeSegmentation;
 
 fn is_anagram(word: &str, candidate: &str) -> bool {
     if word.to_lowercase() == candidate.to_lowercase() {
@@ -8,12 +9,11 @@ fn is_anagram(word: &str, candidate: &str) -> bool {
     normalize(word) == normalize(candidate)
 }
 
-fn normalize(s: &str) -> Vec<char> {
+fn normalize(s: &str) -> Vec<String> {
     let mut chars = s
-        .chars()
-        .flat_map(char::to_lowercase)
-        .filter(|c| c.is_alphabetic())
-        .collect::<Vec<char>>();
+        .graphemes(true)
+        .map(str::to_lowercase)
+        .collect::<Vec<String>>();
 
     chars.sort();
     chars
