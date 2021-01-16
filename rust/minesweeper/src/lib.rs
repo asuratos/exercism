@@ -12,9 +12,9 @@ impl Board {
         }
     }
 
-    pub fn from_rowlist(rows: &[&str]) -> Self{
+    pub fn from_rowlist(rows: &[&str]) -> Self {
         Board {
-            dims: (rows.len(), rows[1].len()),
+            dims: (rows[1].len(), rows.len()),
             tiles: rows.concat(),
         }
     }
@@ -29,16 +29,102 @@ impl Board {
         (i % self.dims.1, i / self.dims.1)
     }
 
-    fn get_neighbors_of(&self, i: usize) -> [usize] {
-        let coords = self.address_to_xy(i);
-        let w = self.dims.0;
-        let h = self.dims.1;
-
-        if coords == (0, 0) {
-            return [0, 1, self.dims.0, self.dims.0 + 1];
-        } else {
-            return [1];
+    pub fn get_neighbors_of(&self, i: usize) -> Vec<usize> {
+        match self.address_to_xy(i) {
+            // corners
+            (0, 0) => {
+                //upper left
+                return [(0, 1), (1, 0), (1, 1)]
+                    .iter()
+                    .map(|&(x, y)| self.xy_to_address(x, y))
+                    .collect();
+            }
+            (w, 0) if (w == self.dims.0 - 1) => {
+                // upper right
+                return [(w - 1, 0), (w, 1), (w - 1, 1)]
+                    .iter()
+                    .map(|&(x, y)| self.xy_to_address(x, y))
+                    .collect();
+            }
+            (0, h) if (h == self.dims.1 - 1) => {
+                // lower left
+                return [(1, h), (0, h - 1), (1, h - 1)]
+                    .iter()
+                    .map(|&(x, y)| self.xy_to_address(x, y))
+                    .collect();
+            }
+            (w, h) if (h == self.dims.1 - 1) && (w == self.dims.0 - 1) => {
+                // lower right
+                return [(w - 1, h), (w, h - 1), (w - 1, h - 1)]
+                    .iter()
+                    .map(|&(x, y)| self.xy_to_address(x, y))
+                    .collect();
+            }
+            // walls
+            (w, 0) => {
+                // first row
+                return [(w - 1, 0), (w + 1, 0), (w - 1, 1), (w, 1), (w + 1, 1)]
+                    .iter()
+                    .map(|&(x, y)| self.xy_to_address(x, y))
+                    .collect();
+            }
+            (0, h) => {
+                // first column
+                return [(0, h + 1), (0, h - 1), (1, h + 1), (1, h), (1, h - 1)]
+                    .iter()
+                    .map(|&(x, y)| self.xy_to_address(x, y))
+                    .collect();
+            }
+            (w, h) if h == self.dims.1 - 1 => {
+                // last row
+                return [
+                    (w - 1, h),
+                    (w + 1, h),
+                    (w - 1, h - 1),
+                    (w, h - 1),
+                    (w + 1, h - 1),
+                ]
+                .iter()
+                .map(|&(x, y)| self.xy_to_address(x, y))
+                .collect();
+            }
+            (w, h) if w == self.dims.0 - 1 => {
+                // last column
+                return [
+                    (w, h + 1),
+                    (w, h - 1),
+                    (w - 1, h + 1),
+                    (w - 1, h),
+                    (w - 1, h - 1),
+                ]
+                .iter()
+                .map(|&(x, y)| self.xy_to_address(x, y))
+                .collect();
+            }
+            (w, h) => {
+                // anywhere in the middle
+                return [
+                    (w, h + 1),
+                    (w, h - 1),
+                    (w - 1, h),
+                    (w + 1, h),
+                    (w - 1, h - 1),
+                    (w + 1, h - 1),
+                    (w - 1, h + 1),
+                    (w + 1, h + 1),
+                ]
+                .iter()
+                .map(|&(x, y)| self.xy_to_address(x, y))
+                .collect();
+            }
         }
+    }
+
+    fn count_neighboring_mines(&self, i: usize) -> u32 {
+        self.get_neighbors_of(i)
+            .iter()
+            .filter(|&&n| self.tiles.chars().nth(n).unwrap() == '*')
+            .count() as u32
     }
 }
 
