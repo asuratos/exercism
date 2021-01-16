@@ -21,67 +21,8 @@ fn run_test(test_case: &[&str]) {
 }
 
 // board tests
-fn make_board_3x3() -> Board {
+fn make_board_3x3() -> Board<'static> {
     Board::from_rowlist(&["123", "456", "789"])
-}
-// neighbor check
-#[test]
-fn corner_neighbors() {
-    let b = make_board_3x3();
-    let mut neighbors = b.get_neighbors_of(0);
-
-    // upper left
-    neighbors.sort();
-    assert_eq!(neighbors, vec![1, 3, 4]);
-
-    //upper right
-    neighbors = b.get_neighbors_of(2);
-    neighbors.sort();
-    assert_eq!(neighbors, vec![1, 4, 5]);
-
-    //lower left
-    neighbors = b.get_neighbors_of(6);
-    neighbors.sort();
-    assert_eq!(neighbors, vec![3, 4, 7]);
-
-    //lower right
-    neighbors = b.get_neighbors_of(8);
-    neighbors.sort();
-    assert_eq!(neighbors, vec![4, 5, 7]);
-}
-
-#[test]
-fn wall_neighbors() {
-    let b = make_board_3x3();
-    let mut neighbors;
-
-    // upper wall
-    neighbors = b.get_neighbors_of(1);
-    neighbors.sort();
-    assert_eq!(neighbors, vec![0, 2, 3, 4, 5]);
-
-    // left wall
-    neighbors = b.get_neighbors_of(3);
-    neighbors.sort();
-    assert_eq!(neighbors, vec![0, 1, 4, 6, 7]);
-
-    // right wall
-    neighbors = b.get_neighbors_of(5);
-    neighbors.sort();
-    assert_eq!(neighbors, vec![1, 2, 4, 7, 8]);
-
-    // bottom wall
-    neighbors = b.get_neighbors_of(7);
-    neighbors.sort();
-    assert_eq!(neighbors, vec![3, 4, 5, 6, 8]);
-}
-
-#[test]
-fn center_neighbors() {
-    let b = make_board_3x3();
-    let mut neighbors = b.get_neighbors_of(4);
-    neighbors.sort();
-    assert_eq!(neighbors, vec![0, 1, 2, 3, 5, 6, 7, 8]);
 }
 
 #[test]
@@ -101,7 +42,6 @@ fn no_columns() {
 }
 
 #[test]
-#[ignore]
 fn no_mines() {
     #[rustfmt::skip]
     run_test(&[
@@ -112,7 +52,6 @@ fn no_mines() {
 }
 
 #[test]
-#[ignore]
 fn board_with_only_mines() {
     #[rustfmt::skip]
     run_test(&[
@@ -123,7 +62,6 @@ fn board_with_only_mines() {
 }
 
 #[test]
-#[ignore]
 fn mine_surrounded_by_spaces() {
     #[rustfmt::skip]
     run_test(&[
@@ -134,7 +72,6 @@ fn mine_surrounded_by_spaces() {
 }
 
 #[test]
-#[ignore]
 fn space_surrounded_by_mines() {
     #[rustfmt::skip]
     run_test(&[
@@ -145,7 +82,6 @@ fn space_surrounded_by_mines() {
 }
 
 #[test]
-#[ignore]
 fn horizontal_line() {
     #[rustfmt::skip]
     run_test(&[
@@ -189,7 +125,6 @@ fn vertical_line_mines_at_edges() {
 }
 
 #[test]
-#[ignore]
 fn cross() {
     #[rustfmt::skip]
     run_test(&[
