@@ -1,4 +1,4 @@
-use minesweeper::{annotate, Board};
+use minesweeper::annotate;
 
 fn remove_annotations(board: &[&str]) -> Vec<String> {
     board.iter().map(|r| remove_annotations_in_row(r)).collect()
@@ -20,11 +20,6 @@ fn run_test(test_case: &[&str]) {
     assert_eq!(expected, annotate(&cleaned_strs));
 }
 
-// board tests
-fn make_board_3x3() -> Board<'static> {
-    Board::from_rowlist(&["123", "456", "789"])
-}
-
 #[test]
 fn no_rows() {
     #[rustfmt::skip]
@@ -33,7 +28,6 @@ fn no_rows() {
 }
 
 #[test]
-#[ignore]
 fn no_columns() {
     #[rustfmt::skip]
     run_test(&[
@@ -90,7 +84,6 @@ fn horizontal_line() {
 }
 
 #[test]
-#[ignore]
 fn horizontal_line_mines_at_edges() {
     #[rustfmt::skip]
     run_test(&[
@@ -99,7 +92,6 @@ fn horizontal_line_mines_at_edges() {
 }
 
 #[test]
-#[ignore]
 fn vertical_line() {
     #[rustfmt::skip]
     run_test(&[
@@ -112,7 +104,6 @@ fn vertical_line() {
 }
 
 #[test]
-#[ignore]
 fn vertical_line_mines_at_edges() {
     #[rustfmt::skip]
     run_test(&[
@@ -137,7 +128,6 @@ fn cross() {
 }
 
 #[test]
-#[ignore]
 fn large_board() {
     #[rustfmt::skip]
     run_test(&[
