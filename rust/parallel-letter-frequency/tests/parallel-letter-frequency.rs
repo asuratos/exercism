@@ -64,7 +64,6 @@ fn test_many_empty_lines() {
 }
 
 #[test]
-#[ignore]
 fn test_many_times_same_text() {
     let v = vec!["abc"; 1000];
     let mut hm = HashMap::new();
@@ -75,19 +74,16 @@ fn test_many_times_same_text() {
 }
 
 #[test]
-#[ignore]
 fn test_punctuation_doesnt_count() {
     assert!(!frequency::frequency(&WILHELMUS, 4).contains_key(&','));
 }
 
 #[test]
-#[ignore]
 fn test_numbers_dont_count() {
     assert!(!frequency::frequency(&["Testing, 1, 2, 3"], 4).contains_key(&'1'));
 }
 
 #[test]
-#[ignore]
 fn test_all_three_anthems_1_worker() {
     let mut v = Vec::new();
     for anthem in [ODE_AN_DIE_FREUDE, WILHELMUS, STAR_SPANGLED_BANNER].iter() {
@@ -102,7 +98,6 @@ fn test_all_three_anthems_1_worker() {
 }
 
 #[test]
-#[ignore]
 fn test_all_three_anthems_3_workers() {
     let mut v = Vec::new();
     for anthem in [ODE_AN_DIE_FREUDE, WILHELMUS, STAR_SPANGLED_BANNER].iter() {
@@ -117,7 +112,6 @@ fn test_all_three_anthems_3_workers() {
 }
 
 #[test]
-#[ignore]
 fn test_non_integer_multiple_of_threads() {
     let v = vec!["abc"; 999];
     let mut hm = HashMap::new();
