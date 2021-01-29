@@ -8,12 +8,12 @@ pub enum HandType {
     OnePair(Vec<u8>),
     TwoPairs(Vec<u8>),
     ThreeOfAKind(Vec<u8>),
-    Straight(u8),   //ok
-    Flush(Vec<u8>), //ok
+    Straight(u8),
+    Flush(Vec<u8>),
     FullHouse(Vec<u8>),
     FourOfAKind(Vec<u8>),
-    StraightFlush(u8), //ok
-    FiveOfAKind(u8),   //ok
+    StraightFlush(u8),
+    FiveOfAKind(u8),
 }
 
 #[derive(Debug, Eq)]
@@ -99,11 +99,9 @@ impl<'a> Hand<'a> {
         let mut counted_vec: Vec<(usize, u8)> =
             counts.iter().map(|(&k, &v)| (v as usize, k)).collect();
 
-        println!("{:?}", counted_vec);
-        // counted_vec.sort_by(|a, b| b.1.cmp(&a.1));
+        // sort by count, then rank value
         counted_vec.sort_unstable();
         counted_vec.reverse();
-        println!("{:?}", counted_vec);
 
         let mut sorted_vec: Vec<u8> = Vec::new();
         for (c, v) in counted_vec {
