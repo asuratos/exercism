@@ -1,21 +1,49 @@
-#[derive(PartialEq, PartialOrd, Eq, Ord)]
+use std::cmp::Ordering;
+use std::collections::HashMap;
+
+#[derive(Debug, Ord, PartialEq, PartialOrd, Eq)]
 pub enum HandType {
-    High(u8),
-    OnePair(u8),
-    TwoPairs(u8, u8),
-    ThreeOfAKind(u8),
-    Straight(u8),
-    Flush(u8),
-    FullHouse(u8),
-    FourOfAKind(u8),
-    StraightFlush(u8),
-    FiveOfAKind(u8),
+    Empty,
+    High(Vec<u8>),
+    OnePair(Vec<u8>),
+    TwoPairs(Vec<u8>),
+    ThreeOfAKind(Vec<u8>),
+    Straight(u8),   //ok
+    Flush(Vec<u8>), //ok
+    FullHouse(Vec<u8>),
+    FourOfAKind(Vec<u8>),
+    StraightFlush(u8), //ok
+    FiveOfAKind(u8),   //ok
 }
 
-#[derive(PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Debug, Eq)]
 pub struct Hand<'a> {
-    handstr: &'a str,
     kind: HandType,
+    handstr: &'a str,
+}
+
+impl<'a> Ord for Hand<'a> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.kind.cmp(&other.kind)
+    }
+}
+
+impl<'a> PartialOrd for Hand<'a> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<'a> PartialEq for Hand<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind
+    }
+}
+
+impl<'a> Default for Hand<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<'a> Hand<'a> {
@@ -37,14 +65,104 @@ impl<'a> Hand<'a> {
         card.chars().rev().next().unwrap()
     }
 
+    fn count_pairs_and_triplets(vals: &[u8]) -> (u8, u8, u8) {
+        let mut counts: HashMap<u8, u8> = HashMap::new();
+
+        vals.iter().for_each(|&n| {
+            let c = counts.entry(n).or_insert(0);
+            *c += 1;
+        });
+
+        let mut pairs = 0;
+        let mut triplets = 0;
+        let mut quads = 0;
+
+        counts.values().for_each(|&val| {
+            match val {
+                2 => pairs += 1,
+                3 => triplets += 1,
+                4 => quads += 1,
+                _ => {}
+            };
+        });
+        (pairs, triplets, quads)
+    }
+
+    fn sort_hand(vals: &[u8]) -> Vec<u8> {
+        let mut counts: HashMap<u8, u8> = HashMap::new();
+
+        vals.iter().for_each(|&n| {
+            let c = counts.entry(n).or_insert(0);
+            *c += 1;
+        });
+
+        let mut counted_vec: Vec<(usize, u8)> =
+            counts.iter().map(|(&k, &v)| (v as usize, k)).collect();
+
+        println!("{:?}", counted_vec);
+        // counted_vec.sort_by(|a, b| b.1.cmp(&a.1));
+        counted_vec.sort_unstable();
+        counted_vec.reverse();
+        println!("{:?}", counted_vec);
+
+        let mut sorted_vec: Vec<u8> = Vec::new();
+        for (c, v) in counted_vec {
+            sorted_vec.append(&mut vec![v; c]);
+        }
+
+        println!("{:?}", sorted_vec);
+
+        sorted_vec
+    }
+
     fn evaluate_hand(mut vals: Vec<u8>, mut suits: Vec<char>) -> HandType {
+        const STRAIGHTS: &[u8] = &[14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 14, 5, 4, 3, 2];
+
+        suits.sort_unstable();
         suits.dedup();
         let is_flush = suits.len() == 1;
 
-        let maxval = *vals.iter().rev().collect();
-        vals.sort();
+        vals.sort_unstable();
+        vals.reverse();
+        // println!("{:?}", vals);
+        let maxval = *vals.get(0).unwrap();
 
-        HandType::High(maxval)
+        // reduced is a vector of unique values in the hand, in descending order
+        let reduced = Hand::sort_hand(&vals);
+
+        if reduced.len() == 1 {
+            return HandType::FiveOfAKind(maxval);
+        }
+
+        // check for straights
+        if STRAIGHTS.windows(5).any(|s| s == vals.as_slice()) {
+            if vals.contains(&14) && vals.contains(&5) {
+                // low straight with A
+                if is_flush {
+                    return HandType::StraightFlush(5);
+                } else {
+                    return HandType::Straight(5);
+                }
+            } else if is_flush {
+                return HandType::StraightFlush(maxval);
+            } else {
+                return HandType::Straight(maxval);
+            }
+        }
+
+        // if it's not a straight, and it's a flush, it's just a flush
+        if is_flush {
+            return HandType::Flush(reduced);
+        }
+
+        match Hand::count_pairs_and_triplets(&vals) {
+            (_, _, 1) => HandType::FourOfAKind(reduced),
+            (1, 0, _) => HandType::OnePair(reduced),
+            (1, 1, _) => HandType::FullHouse(reduced),
+            (2, 0, _) => HandType::TwoPairs(reduced),
+            (0, 1, _) => HandType::ThreeOfAKind(reduced),
+            _ => HandType::High(reduced),
+        }
     }
 
     fn process_hand(handlist: Vec<&str>) -> HandType {
@@ -60,23 +178,23 @@ impl<'a> Hand<'a> {
             .collect();
         // println!("suits of {:?} are {:?}", handlist, suits);
 
-
         Hand::evaluate_hand(vals, suits)
     }
 
-    pub fn new(handstr: &'a str) -> Self {
+    pub fn from_handstr(handstr: &'a str) -> Self {
+        let mut hand = Hand::new();
+        hand.handstr = handstr;
+
         let handlist: Vec<&str> = handstr.split_whitespace().collect();
-        // println!("Read: {:?}", handlist);
+        hand.kind = Hand::process_hand(handlist);
 
-        // handlist is now a list of string slices containing card info
-        // ["4D", "5S", "6S", "8D", "3C"]
+        hand
+    }
 
-        // We want to process this into an enum
-        let handkind = Hand::process_hand(handlist);
-
+    pub fn new() -> Self {
         Hand {
-            handstr: handstr,
-            kind: handkind,
+            kind: HandType::Empty,
+            handstr: "",
         }
     }
 }
@@ -86,19 +204,20 @@ impl<'a> Hand<'a> {
 /// Note the type signature: this function should return _the same_ reference to
 /// the winning hand(s) as were passed in, not reconstructed strings which happen to be equal.
 pub fn winning_hands<'a>(hands: &[&'a str]) -> Option<Vec<&'a str>> {
-    hands.iter().map(|h| Hand::new(h)).collect::<Vec<Hand>>();
+    let mut hands = hands
+        .iter()
+        .map(|h| Hand::from_handstr(h))
+        .collect::<Vec<Hand>>();
+    hands.sort_unstable();
 
-    // Hand Ord check
-    // println!(
-    //     "{}",
-    //     Hand {
-    //         handstr: "",
-    //         kind: HandType::TwoPairs(3,1)
-    //     } > Hand {
-    //         handstr: "",
-    //         kind: HandType::TwoPairs(3,2)
-    //     }
-    // );
+    println!("{:?}", hands);
+    let best_hand = hands.iter().max().unwrap();
 
-    Some(hands.to_vec())
+    Some(
+        hands
+            .iter()
+            .filter(|&h| h == best_hand)
+            .map(|h| h.handstr)
+            .collect::<Vec<&'a str>>(),
+    )
 }
