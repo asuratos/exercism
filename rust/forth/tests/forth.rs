@@ -209,7 +209,6 @@ fn over_error() {
 // User-defined words
 
 #[test]
-#[ignore]
 fn can_consist_of_built_in_words() {
     let mut f = Forth::new();
     assert!(f.eval(": dup-twice dup dup ;").is_ok());
@@ -294,14 +293,12 @@ fn can_define_word_that_uses_word_with_the_same_name() {
 }
 
 #[test]
-#[ignore]
 fn defining_a_number() {
     let mut f = Forth::new();
     assert_eq!(Err(Error::InvalidWord), f.eval(": 1 2 ;"));
 }
 
 #[test]
-#[ignore]
 fn malformed_word_definition() {
     let mut f = Forth::new();
     assert_eq!(Err(Error::InvalidWord), f.eval(":"));
@@ -317,7 +314,6 @@ fn calling_non_existing_word() {
 }
 
 #[test]
-#[ignore]
 fn multiple_definitions() {
     let mut f = Forth::new();
     assert!(f.eval(": one 1 ; : two 2 ; one two +").is_ok());
