@@ -217,7 +217,6 @@ fn can_consist_of_built_in_words() {
 }
 
 #[test]
-#[ignore]
 fn execute_in_the_right_order() {
     let mut f = Forth::new();
     assert!(f.eval(": countup 1 2 3 ;").is_ok());
@@ -226,7 +225,6 @@ fn execute_in_the_right_order() {
 }
 
 #[test]
-#[ignore]
 fn redefining_an_existing_word() {
     let mut f = Forth::new();
     assert!(f.eval(": foo dup ;").is_ok());
@@ -236,7 +234,6 @@ fn redefining_an_existing_word() {
 }
 
 #[test]
-#[ignore]
 fn redefining_an_existing_built_in_word() {
     let mut f = Forth::new();
     assert!(f.eval(": swap dup ;").is_ok());
@@ -245,7 +242,6 @@ fn redefining_an_existing_built_in_word() {
 }
 
 #[test]
-#[ignore]
 fn user_defined_words_are_case_insensitive() {
     let mut f = Forth::new();
     assert!(f.eval(": foo dup ;").is_ok());
@@ -254,7 +250,6 @@ fn user_defined_words_are_case_insensitive() {
 }
 
 #[test]
-#[ignore]
 fn definitions_are_case_insensitive() {
     let mut f = Forth::new();
     assert!(f.eval(": SWAP DUP Dup dup ;").is_ok());
@@ -307,7 +302,6 @@ fn malformed_word_definition() {
 }
 
 #[test]
-#[ignore]
 fn calling_non_existing_word() {
     let mut f = Forth::new();
     assert_eq!(Err(Error::UnknownWord), f.eval("1 foo"));
@@ -321,7 +315,6 @@ fn multiple_definitions() {
 }
 
 #[test]
-#[ignore]
 fn definitions_after_ops() {
     let mut f = Forth::new();
     assert!(f.eval("1 2 + : addone 1 + ; addone").is_ok());
@@ -329,7 +322,6 @@ fn definitions_after_ops() {
 }
 
 #[test]
-#[ignore]
 fn redefine_an_existing_word_with_another_existing_word() {
     let mut f = Forth::new();
     assert!(f.eval(": foo 5 ;").is_ok());

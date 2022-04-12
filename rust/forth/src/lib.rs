@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 pub type Value = i32;
-pub type ForthResult = Result<(), Error>;
+// pub type Result<(), Error> = Result<(), Error>;
 
 pub const BUILTIN: [&str; 4] = ["dup", "drop", "swap", "over"];
 
@@ -27,15 +27,17 @@ impl Forth {
     }
 
     pub fn words(&self, key: String) -> Result<Vec<String>, Error> {
-        self.words.get(&key).cloned().ok_or(Error::InvalidWord)
+        self.words.get(&key).cloned().ok_or(Error::UnknownWord)
     }
 
     pub fn stack(&self) -> &[Value] {
         &self.stack
     }
 
-    fn extract_word_defs(&mut self, input: &str) -> ForthResult {
+    /// Takes the string and t
+    fn extract_word_defs<'a>(&mut self, input: &'a str) -> Result<Vec<&'a str>, Error> {
         let mut defs = vec![];
+        let mut for_eval = vec![];
 
         let mut reading = 0;
 
@@ -54,42 +56,60 @@ impl Forth {
                     }
                     if reading == 1 {
                         defs.last_mut().unwrap().push(String::from(elem));
+                    } else {
+                        for_eval.push(elem);
                     }
                 }
             };
         }
+
+        if reading != 0 {
+            return Err(Error::InvalidWord);
+        };
 
         println!("{:?}", defs);
 
         for mut def in defs {
             let new_word = def.first().ok_or(Error::InvalidWord)?;
 
-            self.words.insert(new_word.to_string(), def.split_off(1));
+            self.words.insert(
+                new_word.to_lowercase(),
+                def.split_off(1).iter().map(|c| c.to_lowercase()).collect(),
+            );
 
             if def.first().unwrap().parse::<i32>().is_ok() {
                 return Err(Error::InvalidWord);
             }
-
-
         }
 
         println!("{:?}", self.words);
+        println!("for_eval after parse: {:?}", for_eval);
 
-        Ok(())
+        Ok(for_eval)
     }
 
-    pub fn eval(&mut self, input: &str) -> ForthResult {
+    pub fn eval(&mut self, input: &str) -> Result<(), Error> {
         // start by parsing out the parts between : and ;
         // and registering into the dictionary
-        self.extract_word_defs(input)?;
+        let for_exec: Vec<&str>;
+        {
+            for_exec = self.extract_word_defs(input)?;
+        }
 
         // replace all the instances of user defined words until only default
         // words are left
 
-        let for_exec = input.split(' ').collect::<Vec<&str>>();
+        // let for_exec = input.split(' ').collect::<Vec<&str>>();
+
+        // TODO: function that takes input &str -> Vec<&str>>
+        //      Removes new word definitions and adds them to the dictionary
+        //      non definitions get replaced with default ones
+        //
 
         // for_exec should be a Vec<&str>> of the command stack, fully parsed
         // and valid (only has built in words)
+
+        // println!("for_exec: {:?}", for_exec);
 
         self.exec(for_exec)
         // for_eval
@@ -108,24 +128,23 @@ impl Forth {
         //     .collect()
     }
 
-    fn eval_word(&mut self, word: &str) -> ForthResult {
+    fn eval_word(&mut self, word: &str) -> Result<(), Error> {
         // println!("{}", word);
-        let cmd_vec = self
-                .words(word.to_string())?
-                // .get(word)
-                // .ok_or(Error::InvalidWord)?
-                // .ok_or_else(|| Error::UnknownWord)
-                .iter()
-                .map(|elem| elem.as_str())
-                .collect::<Vec<&str>>();
+        let words = self.words(word.to_string())?;
 
+        // .get(word)
+        // .ok_or(Error::InvalidWord)?
+        // .ok_or_else(|| Error::UnknownWord)
+        let cmd_vec = words
+            .iter()
+            .map(|elem| elem.as_str())
+            .collect::<Vec<&str>>();
 
         // println!("{:?}", cmd_vec);
-        self.exec(cmd_vec);
-        Ok(())
+        self.exec(cmd_vec)
     }
 
-    fn exec(&mut self, for_exec: Vec<&str>) -> ForthResult {
+    fn exec(&mut self, for_exec: Vec<&str>) -> Result<(), Error> {
         for_exec
             .iter()
             .map(|c| match c.parse::<i32>() {
@@ -142,7 +161,7 @@ impl Forth {
             .collect()
     }
 
-    fn arithmetic(&mut self, op: &str) -> ForthResult {
+    fn arithmetic(&mut self, op: &str) -> Result<(), Error> {
         let x1 = self.stack.pop().ok_or_else(|| Error::StackUnderflow)?;
         let x2 = self.stack.pop().ok_or_else(|| Error::StackUnderflow)?;
 
@@ -161,7 +180,7 @@ impl Forth {
         }
     }
 
-    fn dup(&mut self) -> ForthResult {
+    fn dup(&mut self) -> Result<(), Error> {
         let end = self
             .stack
             .last()
@@ -171,13 +190,13 @@ impl Forth {
         Ok(self.stack.push(end))
     }
 
-    fn drop(&mut self) -> ForthResult {
+    fn drop(&mut self) -> Result<(), Error> {
         self.stack.pop().ok_or_else(|| Error::StackUnderflow)?;
 
         Ok(())
     }
 
-    fn swap(&mut self) -> ForthResult {
+    fn swap(&mut self) -> Result<(), Error> {
         let x1 = self.stack.pop().ok_or_else(|| Error::StackUnderflow)?;
         let x2 = self.stack.pop().ok_or_else(|| Error::StackUnderflow)?;
 
@@ -186,7 +205,7 @@ impl Forth {
         Ok(())
     }
 
-    fn over(&mut self) -> ForthResult {
+    fn over(&mut self) -> Result<(), Error> {
         let x1 = self.stack.pop().ok_or_else(|| Error::StackUnderflow)?;
         let x2 = self.stack.pop().ok_or_else(|| Error::StackUnderflow)?;
 
