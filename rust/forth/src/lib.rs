@@ -1,11 +1,6 @@
-use std::collections::HashMap;
-
 pub type Value = i32;
 
-pub struct Forth {
-    stack: Vec<i32>,
-    words: HashMap<String, Vec<String>>,
-}
+pub type ForthResult = Result<(), Error>;
 
 #[derive(Debug, PartialEq)]
 pub enum Error {
@@ -13,6 +8,49 @@ pub enum Error {
     StackUnderflow,
     UnknownWord,
     InvalidWord,
+}
+pub struct Forth {
+    stack: Vec<Value>,
+    words: Vec<Definition>,
+}
+
+#[derive(Clone)]
+pub enum Instruction {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Dup,
+    Swap,
+    Drop,
+    Over,
+    Number(Value),
+    Call(usize),
+}
+
+pub struct Definition {
+    name: String,
+    body: Vec<Instruction>,
+}
+
+fn parse_builtin(word: &str) -> Result<Instruction, Error> {
+    match word {
+        "+" => Ok(Instruction::Add),
+        "-" => Ok(Instruction::Sub),
+        "*" => Ok(Instruction::Mul),
+        "/" => Ok(Instruction::Div),
+        "dup" => Ok(Instruction::Dup),
+        "swap" => Ok(Instruction::Swap),
+        "drop" => Ok(Instruction::Drop),
+        "over" => Ok(Instruction::Over),
+        _ => {
+            if let Ok(num) = word.parse::<Value>() {
+                Ok(Instruction::Number(num))
+            } else {
+                Err(Error::UnknownWord)
+            }
+        }
+    }
 }
 
 impl Default for Forth {
@@ -25,127 +63,135 @@ impl Forth {
     pub fn new() -> Forth {
         Forth {
             stack: vec![],
-            words: HashMap::new(),
+            words: vec![],
         }
     }
 
-    pub fn words(&self, key: String) -> Result<Vec<String>, Error> {
-        self.words.get(&key).cloned().ok_or(Error::UnknownWord)
-    }
-
-    pub fn stack(&self) -> &[i32] {
+    pub fn stack(&self) -> &[Value] {
         &self.stack
     }
 
-    fn extract_word_defs<'a>(&mut self, input: &'a str) -> Result<Vec<&'a str>, Error> {
-        let mut defs = vec![];
-        let mut for_eval = vec![];
-
-        let mut reading = 0;
-
-        // Read each element and place words into either vectors for
-        // new definitions or into the string for evaluation
-        for elem in input.split(' ') {
-            match elem {
-                ":" => {
-                    reading += 1;
-                    defs.push(vec![]);
-                }
-                ";" => {
-                    reading -= 1;
-                }
-                _ => {
-                    if !(0..=1).contains(&reading) {
-                        return Err(Error::InvalidWord);
-                    }
-                    if reading == 1 {
-                        defs.last_mut().unwrap().push(String::from(elem));
-                    } else {
-                        for_eval.push(elem);
-                    }
-                }
-            };
+    fn parse_word<'a>(
+        &mut self,
+        word: &'a str,
+        remaining_input: &mut impl Iterator<Item = &'a str>,
+    ) -> ForthResult {
+        if word == ":" {
+            self.parse_definition(remaining_input)
+        } else {
+            let instr = self.parse_normal_word(word)?;
+            self.eval_instruction(instr)
         }
+    }
 
-        //catch cases where : and ; are not properly paired
-        if reading != 0 {
-            return Err(Error::InvalidWord);
-        };
-
-        for mut def in defs {
-            let new_word = def.first().ok_or(Error::InvalidWord)?.clone();
-
-            let new_def = def
-                .split_off(1)
-                .iter()
-                .map(|c| c.to_lowercase())
-                // if a word in the definition is an already defined custom
-                // word, then copy that word's definition into this
-                // .map(|c| {
-                //     if self.words.contains_key(&c) {
-                //         self.words.get(&c).unwrap().clone()
-                //     } else {
-                //         vec![c]
-                //     }
-                // })
-                // .flatten()
-                .collect();
-
-            if !self.words.contains_key(&new_word) {
-                self.words.insert(new_word.to_lowercase(), new_def);
-            } else {
-                if let Some(old_def) = self.words.get_mut(&new_word) {
-                    *old_def = new_def;
-                }
-            }
-
-            if def.first().unwrap().parse::<i32>().is_ok() {
+    fn parse_definition<'a>(&mut self, iter: &mut impl Iterator<Item = &'a str>) -> ForthResult {
+        if let Some(new_word) = iter.next() {
+            if new_word.parse::<Value>().is_ok() {
                 return Err(Error::InvalidWord);
             }
+
+            let name = new_word.to_ascii_lowercase();
+            let mut body = vec![];
+            for word in iter {
+                if word == ";" {
+                    self.words.push(Definition { name, body });
+                    return Ok(());
+                } else {
+                    body.push(self.parse_normal_word(word)?)
+                }
+            }
         }
-
-        Ok(for_eval)
+        Err(Error::InvalidWord)
     }
 
-    pub fn eval(&mut self, input: &str) -> Result<(), Error> {
-        // start by parsing out the parts between : and ;
-        // and registering into the dictionary
-        let for_exec = self.extract_word_defs(input)?;
-
-        self.exec(for_exec)
+    fn parse_normal_word(&mut self, word: &str) -> Result<Instruction, Error> {
+        if word == ":" || word == ";" {
+            Err(Error::InvalidWord)
+        } else {
+            let lowercase = word.to_ascii_lowercase();
+            if let Some(call) = self.find_defn(&lowercase) {
+                Ok(call)
+            } else {
+                parse_builtin(&lowercase)
+            }
+        }
     }
 
-    fn eval_word(&mut self, word: &str) -> Result<(), Error> {
-        let words = self.words(word.to_string())?;
-
-        let cmd_vec = words
-            .iter()
-            .map(|elem| elem.as_str())
-            .collect::<Vec<&str>>();
-
-        self.exec(cmd_vec)
-    }
-
-    fn exec(&mut self, for_exec: Vec<&str>) -> Result<(), Error> {
-        for_exec.iter().try_for_each(|c| match c.parse::<i32>() {
-            Ok(num) => {
-                self.stack.push(num);
+    fn eval_instruction(&mut self, instr: Instruction) -> ForthResult {
+        match instr {
+            Instruction::Add => self.arithmetic("+"),
+            Instruction::Sub => self.arithmetic("-"),
+            Instruction::Mul => self.arithmetic("*"),
+            Instruction::Div => self.arithmetic("/"),
+            Instruction::Dup => self.dup(),
+            Instruction::Swap => self.swap(),
+            Instruction::Drop => self.drop(),
+            Instruction::Over => self.over(),
+            Instruction::Number(n) => {
+                self.stack.push(n);
                 Ok(())
             }
-            Err(_) => match c.to_lowercase().as_str() {
-                //prioritize user-defined words before built-in
-                word if self.words.contains_key(word) => self.eval_word(word),
-                "+" | "-" | "/" | "*" => self.arithmetic(c),
-                "dup" => self.dup(),
-                "drop" => self.drop(),
-                "swap" => self.swap(),
-                "over" => self.over(),
-                _ => Err(Error::UnknownWord),
-            },
-        })
+            Instruction::Call(idx) => self.call(idx),
+        }
     }
 
-    fn arithmetic(&mut self, op: &str) -> Result<(), Error> {
+    fn call(&mut self, idx: usize) -> ForthResult {
+        let def = self.words[idx].body.clone();
+        for instr in def {
+            self.eval_instruction(instr)?;
+        }
+        Ok(())
+    }
+
+    fn find_defn(&self, word: &str) -> Option<Instruction> {
+        for (idx, defn) in self.words.iter().enumerate().rev() {
+            if defn.name == word {
+                return Some(Instruction::Call(idx));
+            }
+        }
+        None
+    }
+
+    pub fn eval(&mut self, input: &str) -> ForthResult {
+        let mut iter = input.split_ascii_whitespace();
+
+        while let Some(word) = iter.next() {
+            self.parse_word(word, &mut iter)?;
+        }
+        Ok(())
+    }
+
+    // fn eval_word(&mut self, word: &str) -> ForthResult {
+    //     let words = self.try_get_word(word.to_string())?;
+
+    //     let cmd_vec = words
+    //         .iter()
+    //         .map(|elem| elem.as_str())
+    //         .collect::<Vec<&str>>();
+
+    //     self.exec(cmd_vec)
+    // }
+
+    // fn exec(&mut self, for_exec: Vec<&str>) -> ForthResult {
+    //     for_exec.iter().try_for_each(|c| match c.parse::<i32>() {
+    //         Ok(num) => {
+    //             self.stack.push(num);
+    //             Ok(())
+    //         }
+    //         Err(_) => match c.to_lowercase().as_str() {
+    //             //prioritize user-defined words before built-in
+    //             word if self.words.contains_key(word) => self.eval_word(word),
+    //             "+" | "-" | "/" | "*" => self.arithmetic(c),
+    //             "dup" => self.dup(),
+    //             "drop" => self.drop(),
+    //             "swap" => self.swap(),
+    //             "over" => self.over(),
+    //             _ => Err(Error::UnknownWord),
+    //         },
+    //     })
+    // }
+
+    fn arithmetic(&mut self, op: &str) -> ForthResult {
         let x1 = self.stack.pop().ok_or(Error::StackUnderflow)?;
         let x2 = self.stack.pop().ok_or(Error::StackUnderflow)?;
 
@@ -166,20 +212,20 @@ impl Forth {
         Ok(())
     }
 
-    fn dup(&mut self) -> Result<(), Error> {
+    fn dup(&mut self) -> ForthResult {
         let end = self.stack.last().cloned().ok_or(Error::StackUnderflow)?;
 
         self.stack.push(end);
         Ok(())
     }
 
-    fn drop(&mut self) -> Result<(), Error> {
+    fn drop(&mut self) -> ForthResult {
         self.stack.pop().ok_or(Error::StackUnderflow)?;
 
         Ok(())
     }
 
-    fn swap(&mut self) -> Result<(), Error> {
+    fn swap(&mut self) -> ForthResult {
         let x1 = self.stack.pop().ok_or(Error::StackUnderflow)?;
         let x2 = self.stack.pop().ok_or(Error::StackUnderflow)?;
 
@@ -188,7 +234,7 @@ impl Forth {
         Ok(())
     }
 
-    fn over(&mut self) -> Result<(), Error> {
+    fn over(&mut self) -> ForthResult {
         let x1 = self.stack.pop().ok_or(Error::StackUnderflow)?;
         let x2 = self.stack.pop().ok_or(Error::StackUnderflow)?;
 
