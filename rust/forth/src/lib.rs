@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 
 pub type Value = i32;
-// pub type Result<(), Error> = Result<(), Error>;
-
-pub const BUILTIN: [&str; 4] = ["dup", "drop", "swap", "over"];
 
 pub struct Forth {
     stack: Vec<i32>,
@@ -36,7 +33,7 @@ impl Forth {
         self.words.get(&key).cloned().ok_or(Error::UnknownWord)
     }
 
-    pub fn stack(&self) -> &[Value] {
+    pub fn stack(&self) -> &[i32] {
         &self.stack
     }
 
@@ -70,38 +67,42 @@ impl Forth {
             };
         }
 
+        //catch cases where : and ; are not properly paired
         if reading != 0 {
             return Err(Error::InvalidWord);
         };
 
-        println!("{:?}", defs);
-
         for mut def in defs {
-            let new_word = def.first().ok_or(Error::InvalidWord)?;
+            let new_word = def.first().ok_or(Error::InvalidWord)?.clone();
 
-            self.words.insert(
-                new_word.to_lowercase(),
-                def.split_off(1)
-                    .iter()
-                    .map(|c| c.to_lowercase())
-                    .map(|c| {
-                        if self.words.contains_key(&c) {
-                            self.words.get(&c).unwrap().clone()
-                        } else {
-                            vec![c]
-                        }
-                    })
-                    .flatten()
-                    .collect(),
-            );
+            let new_def = def
+                .split_off(1)
+                .iter()
+                .map(|c| c.to_lowercase())
+                // if a word in the definition is an already defined custom
+                // word, then copy that word's definition into this
+                // .map(|c| {
+                //     if self.words.contains_key(&c) {
+                //         self.words.get(&c).unwrap().clone()
+                //     } else {
+                //         vec![c]
+                //     }
+                // })
+                // .flatten()
+                .collect();
+
+            if !self.words.contains_key(&new_word) {
+                self.words.insert(new_word.to_lowercase(), new_def);
+            } else {
+                if let Some(old_def) = self.words.get_mut(&new_word) {
+                    *old_def = new_def;
+                }
+            }
 
             if def.first().unwrap().parse::<i32>().is_ok() {
                 return Err(Error::InvalidWord);
             }
         }
-
-        println!("{:?}", self.words);
-        println!("for_eval after parse: {:?}", for_eval);
 
         Ok(for_eval)
     }
@@ -132,6 +133,7 @@ impl Forth {
                 Ok(())
             }
             Err(_) => match c.to_lowercase().as_str() {
+                //prioritize user-defined words before built-in
                 word if self.words.contains_key(word) => self.eval_word(word),
                 "+" | "-" | "/" | "*" => self.arithmetic(c),
                 "dup" => self.dup(),

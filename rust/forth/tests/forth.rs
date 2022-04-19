@@ -178,7 +178,6 @@ fn swap_error() {
 }
 
 #[test]
-#[ignore]
 fn over() {
     let mut f = Forth::new();
     assert!(f.eval("1 2 over").is_ok());
