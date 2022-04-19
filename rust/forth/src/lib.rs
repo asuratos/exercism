@@ -41,6 +41,8 @@ impl Forth {
 
         let mut reading = 0;
 
+        // Read each element and place words into either vectors for
+        // new definitions or into the string for evaluation
         for elem in input.split(' ') {
             match elem {
                 ":" => {
@@ -74,7 +76,18 @@ impl Forth {
 
             self.words.insert(
                 new_word.to_lowercase(),
-                def.split_off(1).iter().map(|c| c.to_lowercase()).collect(),
+                def.split_off(1)
+                    .iter()
+                    .map(|c| c.to_lowercase())
+                    .map(|c| {
+                        if self.words.contains_key(&c) {
+                            self.words.get(&c).unwrap().clone()
+                        } else {
+                            vec![c]
+                        }
+                    })
+                    .flatten()
+                    .collect(),
             );
 
             if def.first().unwrap().parse::<i32>().is_ok() {
@@ -91,6 +104,7 @@ impl Forth {
     pub fn eval(&mut self, input: &str) -> Result<(), Error> {
         // start by parsing out the parts between : and ;
         // and registering into the dictionary
+        println!("{:?}", self.words);
         let for_exec: Vec<&str>;
         {
             for_exec = self.extract_word_defs(input)?;
@@ -150,12 +164,13 @@ impl Forth {
             .map(|c| match c.parse::<i32>() {
                 Ok(num) => Ok(self.stack.push(num)),
                 Err(_) => match c.to_lowercase().as_str() {
+                    word if self.words.contains_key(word) => self.eval_word(word),
                     "+" | "-" | "/" | "*" => self.arithmetic(c),
                     "dup" => self.dup(),
                     "drop" => self.drop(),
                     "swap" => self.swap(),
                     "over" => self.over(),
-                    word => self.eval_word(word),
+                    _ => return Err(Error::UnknownWord),
                 },
             })
             .collect()

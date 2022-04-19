@@ -258,7 +258,6 @@ fn definitions_are_case_insensitive() {
 }
 
 #[test]
-#[ignore]
 fn redefining_a_built_in_operator() {
     let mut f = Forth::new();
     assert!(f.eval(": + * ;").is_ok());
@@ -267,7 +266,6 @@ fn redefining_a_built_in_operator() {
 }
 
 #[test]
-#[ignore]
 fn can_use_different_words_with_the_same_name() {
     let mut f = Forth::new();
     assert!(f.eval(": foo 5 ;").is_ok());
@@ -278,7 +276,6 @@ fn can_use_different_words_with_the_same_name() {
 }
 
 #[test]
-#[ignore]
 fn can_define_word_that_uses_word_with_the_same_name() {
     let mut f = Forth::new();
     assert!(f.eval(": foo 10 ;").is_ok());
