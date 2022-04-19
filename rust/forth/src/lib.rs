@@ -161,36 +161,6 @@ impl Forth {
         Ok(())
     }
 
-    // fn eval_word(&mut self, word: &str) -> ForthResult {
-    //     let words = self.try_get_word(word.to_string())?;
-
-    //     let cmd_vec = words
-    //         .iter()
-    //         .map(|elem| elem.as_str())
-    //         .collect::<Vec<&str>>();
-
-    //     self.exec(cmd_vec)
-    // }
-
-    // fn exec(&mut self, for_exec: Vec<&str>) -> ForthResult {
-    //     for_exec.iter().try_for_each(|c| match c.parse::<i32>() {
-    //         Ok(num) => {
-    //             self.stack.push(num);
-    //             Ok(())
-    //         }
-    //         Err(_) => match c.to_lowercase().as_str() {
-    //             //prioritize user-defined words before built-in
-    //             word if self.words.contains_key(word) => self.eval_word(word),
-    //             "+" | "-" | "/" | "*" => self.arithmetic(c),
-    //             "dup" => self.dup(),
-    //             "drop" => self.drop(),
-    //             "swap" => self.swap(),
-    //             "over" => self.over(),
-    //             _ => Err(Error::UnknownWord),
-    //         },
-    //     })
-    // }
-
     fn arithmetic(&mut self, op: &str) -> ForthResult {
         let x1 = self.stack.pop().ok_or(Error::StackUnderflow)?;
         let x2 = self.stack.pop().ok_or(Error::StackUnderflow)?;
