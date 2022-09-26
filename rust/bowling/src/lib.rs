@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 #[derive(Debug, PartialEq)]
 pub enum Error {
     NotEnoughPinsLeft,
@@ -5,7 +7,7 @@ pub enum Error {
 }
 
 // Enum for recording the final state of a frame
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum FinishedFrame {
     Strike,
     Spare(u16),
@@ -98,23 +100,26 @@ impl LastFrame {
             return Err(Error::GameComplete);
         }
 
-        if self.rolls.len() == 1 {
+        self.rolls.push(roll);
+        if self.rolls.len() == 0 {
+            if roll != 10 {
+                if roll > self.remaining {
+                    return Err(Error::NotEnoughPinsLeft);
+                }
+                self.remaining -= roll;
+            } else {
+                self.fill = true;
+            }
+        } else {
             if roll > self.remaining {
                 return Err(Error::NotEnoughPinsLeft);
             }
 
-            self.rolls.push(roll);
-
             if roll == self.remaining {
                 self.fill = true;
                 self.remaining = 10;
-            }
-        } else {
-            self.rolls.push(roll);
-            if roll != 10 {
-                self.remaining -= roll;
             } else {
-                self.fill = true;
+                self.remaining -= roll;
             }
         }
 
@@ -163,18 +168,39 @@ impl BowlingGame {
         if self.previous_frames.len() == 9 && self.final_frame.is_finished() {
             let mut total = self.final_frame.total();
 
-            let mut prev_frame: Option<&FinishedFrame> = None;
+            let finalframe_throws = (self.final_frame.rolls[0], self.final_frame.rolls[1]);
+            let finalframe = FinishedFrame::Normal(finalframe_throws);
 
-            for frame in &self.previous_frames {
+            let mut last_two: VecDeque<&FinishedFrame> = VecDeque::new();
+            last_two.push_back(&finalframe);
+
+            for frame in self.previous_frames.iter().rev() {
                 total += frame.total();
 
-                total += match prev_frame {
-                    Some(&FinishedFrame::Strike) => frame.total(),
-                    Some(&FinishedFrame::Spare(_)) => frame.first(),
-                    _ => 0,
-                };
+                match frame {
+                    FinishedFrame::Strike => {
+                        if let Some(&prev) = last_two.back() {
+                            if prev == &FinishedFrame::Strike {
+                                if let Some(twobefore) = last_two.front() {
+                                    total += twobefore.first();
+                                }
+                            }
 
-                prev_frame = Some(frame);
+                            total += prev.total();
+                        }
+                    }
+                    FinishedFrame::Spare(_) => {
+                        if let Some(&prev) = last_two.back() {
+                            total += prev.first();
+                        }
+                    }
+                    _ => {}
+                }
+
+                if last_two.len() == 2 {
+                    last_two.pop_front();
+                }
+                last_two.push_back(&frame);
             }
 
             return Some(total);
